@@ -1,58 +1,68 @@
-Partition Monitor
+# Partition Monitor
 
-Partition Monitor is a lightweight Go-based tool that continuously checks the health of distributed nodes and detects network partitions across quorum groups. It provides a periodic health report for each node and identifies when a group becomes partitioned or recovers.
+Partition Monitor is a lightweight Go-based tool for continuously monitoring distributed nodes and detecting network partitions across quorum groups. It performs periodic health checks and reports when groups become partitioned or recover.
 
-Features
+---
 
-Periodic node health checks using HTTP or TCP
+##  Features
 
-Partition detection across quorum-based groups
+- Periodic node health checks (HTTP/TCP)
+- Partition detection across quorum-based groups
+- State change alerts (partitioned → healthy or vice versa)
+- Graceful shutdown with signal handling
+- Simple YAML-based configuration
 
-Automatic alerts when a group becomes partitioned or recovers
+---
 
-Graceful shutdown with signal handling
+## ⚙️ Configuration
 
-Simple configuration via YAML file
+All settings are defined in `config.yaml`.  
+Example structure:
 
-Configuration
+```yaml
+monitor:
+  name: "Cluster Monitor"
+  check_interval: 10s
+  check_timeout: 3s
 
-All settings are defined in config.yaml, including:
+nodes:
+  - name: "Node A"
+    address: "http://localhost:8080/health"
+    type: "http"
+    enabled: true
+    tags: ["api", "region1"]
 
-Monitoring intervals and timeouts
+  - name: "Node B"
+    address: "10.0.0.2:9000"
+    type: "tcp"
+    enabled: true
+    tags: ["db", "region1"]
 
-List of nodes with addresses, types, and tags
+quorum_groups:
+  - name: "Region1"
+    quorum: 60
+    tags: ["region1"]
 
-Quorum group definitions for partition detection
+```
 
 Usage
-
-Build the binary:
-
+Build
+```
 go build -o partition-monitor
+```
 
-
-Run the monitor:
-
+Run
+```
 ./partition-monitor
+```
 
 
-The monitor will:
+-When started, the monitor:
 
-Load the configuration
+-Loads the configuration file
 
-Run an initial health check immediately
+-Runs an initial health check immediately
 
-Continue running checks at the configured interval
+-Continues running checks at the configured interval
 
-Display cluster and partition status in the console
-
-Project Structure
-partition-monitor/
-│
-├── internal/
-│   ├── checker/       # Handles node health checks
-│   ├── config/        # Loads and validates configuration
-│   └── detector/      # Detects partitions in quorum groups
-│
-├── config.yaml        # Main configuration file
-└── main.go            # Entry point
+-Displays node and group health in the console
