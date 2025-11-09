@@ -1,0 +1,36 @@
+monitor:
+  name: "Cluster-monitor"
+  check_interval: 10s
+  check_timeout: 5s
+  quorum: 65
+  
+quorum_groups:
+  - name: "api-cluster"
+    quorum: 51        
+    tags: ["api"]    
+    
+  - name: "database-cluster"
+    quorum: 100       # Need all database nodes
+    tags: ["database"]
+  
+nodes:
+    - name: "api_server1"
+      type: "http"
+      address: "http://localhost:8080"
+      enabled: true
+      tags:
+        - "api"
+        - "loginApi"
+    - name: "api_server2"
+      type: "http"
+      address: "http://localhost:8081"
+      enabled: true
+      tags:
+        - "api"
+        - "storeApi"
+    - name: "database"
+      type: "tcp"
+      address: "db1.example.com:5432"
+      enabled: true
+      tags:
+        - "database"
