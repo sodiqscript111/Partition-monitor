@@ -3,11 +3,12 @@ package config
 import (
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"
+	
 )
 
 type Config struct {
 	Monitor MonitorConfig `yaml:"monitor"`
+	QuorumGroups []QuorumGroup `yaml:"quorum_groups"`
 	Nodes   []Node        `yaml:"nodes"`
 }
 
@@ -23,6 +24,12 @@ type Node struct {
 	Type    string   `yaml:"type"`
 	Address string   `yaml:"address"`
 	Enabled bool     `yaml:"enabled"`
+	Tags    []string `yaml:"tags"`
+}
+
+type QuorumGroup struct {
+	Name    string   `yaml:"name"`
+    Quorum int      `yaml:"quorum"`
 	Tags    []string `yaml:"tags"`
 }
 
