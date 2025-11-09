@@ -2,97 +2,145 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"partition-monitor/internal/checker"
 	"partition-monitor/internal/config"
-	"partition-monitor/internal/detector" // ← ADD THIS IMPORT!
+	"partition-monitor/internal/detector"
+)
+
+var (
+	previousClusterStatus detector.ClusterStatus
+	runCount              int
 )
 
 func main() {
+	// Load configuration
 	cfg, err := config.LoadConfig("config.yaml")
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		return
 	}
 
-	fmt.Printf("Monitor Name: %s\n", cfg.Monitor.Name)
-	fmt.Printf("Check Interval: %v\n", cfg.Monitor.CheckInterval)
-	fmt.Printf("Check Timeout: %v\n", cfg.Monitor.CheckTimeout)
-	fmt.Printf("Quorum Groups: %d\n\n", len(cfg.QuorumGroups)) // ← Changed from Quorum
+	// Display basic info
+	fmt.Printf("🚀 Starting %s\n", cfg.Monitor.Name)
+	fmt.Printf("📊 Monitoring %d quorum groups\n", len(cfg.QuorumGroups))
+	fmt.Printf("⏱️  Check interval: %v\n\n", cfg.Monitor.CheckInterval)
 
-	// Display quorum groups
+	// Show quorum groups
 	for _, group := range cfg.QuorumGroups {
 		fmt.Printf("  %s: %d%% quorum, tags: %v\n",
 			group.Name, group.Quorum, group.Tags)
 	}
+	fmt.Println()
 
-	fmt.Println("\nChecking Nodes...\n")
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// Collect all results - IMPORTANT: Store them in a slice!
-	var results []checker.HealthResult // ← ADD THIS
+	// Run initial check immediately
+	runHealthChecks(cfg)
 
+	// Setup ticker for periodic checks
+	ticker := time.NewTicker(cfg.Monitor.CheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			runHealthChecks(cfg)
+		case <-sigChan:
+			fmt.Println("\n🛑 Shutting down gracefully...")
+			return
+		}
+	}
+}
+
+func runHealthChecks(cfg *config.Config) {
+	runCount++
+
+	fmt.Printf("\n╔═══════════════════════════════════╗\n")
+	fmt.Printf("║ Health Check Run #%d\n", runCount)
+	fmt.Printf("║ %s\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Printf("╚═══════════════════════════════════╝\n\n")
+
+	var results []checker.HealthResult
+
+	// Perform checks for all nodes
 	for _, node := range cfg.Nodes {
 		if !node.Enabled {
 			continue
 		}
 
-		// Perform health check
 		result := checker.HealthCheck(node)
-		results = append(results, result) // ← ADD THIS - Save the result!
-
-		// Display result
-		statusIcon := "✅"
-		if result.Status == "unhealthy" {
-			statusIcon = "❌"
-		}
-
-		fmt.Printf(" %s (%s): %s\n", result.NodeName, node.Type, node.Address)
-		fmt.Printf("   Tags: %v\n", node.Tags)
-		fmt.Printf("   %s Status: %s\n", statusIcon, result.Status)
-		fmt.Printf("     Latency: %v\n", result.Latency)
-
-		if result.Error != nil {
-			fmt.Printf("     Error: %v\n", result.Error)
-		}
-
-		fmt.Println()
+		results = append(results, result)
+		printNodeResult(result, node)
 	}
 
-	// ═══════════════════════════════════════════════════════
-	// THIS IS THE NEW PART - PARTITION DETECTION!
-	// ═══════════════════════════════════════════════════════
+	fmt.Println("\n🔍 Partition Detection:")
+	detectorInstance := detector.NewPartitionDetector(cfg.QuorumGroups)
+	currentStatus := detectorInstance.DetectPartitions(results, cfg.Nodes)
 
-	fmt.Println("═══════════════════════════════════")
-	fmt.Println("🔍 PARTITION DETECTION BY GROUP")
-	fmt.Println("═══════════════════════════════════\n")
-
-	// Create partition detector with your quorum groups
-	partitionDetector := detector.NewPartitionDetector(cfg.QuorumGroups)
-
-	// Detect partitions across all groups
-	clusterStatus := partitionDetector.DetectPartitions(results, cfg.Nodes)
-
-	// Display each group's status
-	for _, groupStatus := range clusterStatus.Groups {
-		if groupStatus.IsPartitioned {
-			fmt.Printf(" %s: PARTITIONED\n", groupStatus.GroupName)
-		} else {
-			fmt.Printf("%s: HEALTHY\n", groupStatus.GroupName)
-		}
-
-		fmt.Printf("   %s\n", groupStatus.Message)
-
-		if len(groupStatus.UnhealthyNodes) > 0 {
-			fmt.Printf("   Unreachable: %v\n", groupStatus.UnhealthyNodes)
-		}
-		fmt.Println()
+	for _, group := range currentStatus.Groups {
+		printGroupStatus(group)
 	}
 
-	// Overall cluster status
-	fmt.Println("───────────────────────────────────")
-	if clusterStatus.AllHealthy {
-		fmt.Println("ALL GROUPS HEALTHY - No action needed")
-	} else if clusterStatus.AnyPartitioned {
-		fmt.Println("PARTITION DETECTED - ALERT TRIGGERED!")
-		fmt.Println("   Some services may be unavailable")
+	// Skip comparison on first run
+	if runCount > 1 {
+		checkStateChanges(currentStatus)
 	}
+
+	previousClusterStatus = currentStatus
+}
+
+func printNodeResult(result checker.HealthResult, node config.Node) {
+	statusIcon := "✅"
+	if result.Status == "unhealthy" {
+		statusIcon = "❌"
+	}
+
+	fmt.Printf(" %s (%s): %s\n", result.NodeName, node.Type, node.Address)
+	fmt.Printf("   Tags: %v\n", node.Tags)
+	fmt.Printf("   %s Status: %s\n", statusIcon, result.Status)
+	fmt.Printf("     Latency: %v\n", result.Latency)
+	if result.Error != nil {
+		fmt.Printf("     Error: %v\n", result.Error)
+	}
+	fmt.Println()
+}
+
+func printGroupStatus(group detector.GroupStatus) {
+	if group.IsPartitioned {
+		fmt.Printf(" ⚠️  %s: PARTITIONED\n", group.GroupName)
+	} else {
+		fmt.Printf(" ✅ %s: HEALTHY\n", group.GroupName)
+	}
+	fmt.Printf("   %s\n", group.Message)
+	if len(group.UnhealthyNodes) > 0 {
+		fmt.Printf("   Unreachable: %v\n", group.UnhealthyNodes)
+	}
+	fmt.Println()
+}
+
+func checkStateChanges(current detector.ClusterStatus) {
+	for i, group := range current.Groups {
+		prevGroup := previousClusterStatus.Groups[i]
+
+		if !prevGroup.IsPartitioned && group.IsPartitioned {
+			sendAlert(group)
+		} else if prevGroup.IsPartitioned && !group.IsPartitioned {
+			sendRecoveryAlert(group)
+		}
+	}
+}
+
+func sendAlert(group detector.GroupStatus) {
+	fmt.Printf("🚨 ALERT: %s became PARTITIONED!\n", group.GroupName)
+}
+
+func sendRecoveryAlert(group detector.GroupStatus) {
+	fmt.Printf("✅ RECOVERY: %s is now HEALTHY again!\n", group.GroupName)
 }
