@@ -10,7 +10,7 @@ quorum_groups:
     tags: ["api"]
 
   - name: "database-cluster"
-    quorum: 100       # Need all database nodes
+    quorum: 100       
     tags: ["database"]
 
 nodes:
@@ -34,3 +34,4 @@ nodes:
       enabled: true
       tags:
         - "database"
+

@@ -39,7 +39,7 @@ func NewPartitionDetector(quorumGroups []config.QuorumGroup) *PartitionDetector 
 }
 
 func nodeInGroup(node config.Node, groupTags []string) bool {
-	fmt.Printf("   🔍 Checking if node '%s' (tags: %v) matches group tags: %v\n",
+	fmt.Printf("  Checking if node '%s' (tags: %v) matches group tags: %v\n",
 		node.Name, node.Tags, groupTags)
 
 	for _, nodeTag := range node.Tags {
@@ -75,7 +75,7 @@ func (pd *PartitionDetector) DetectPartitions(
 		fmt.Println("   Finding nodes for this group...")
 		for _, node := range allNodes {
 			if !node.Enabled {
-				fmt.Printf("   ⏭  Skipping disabled node: %s\n", node.Name)
+				fmt.Printf("   Skipping disabled node: %s\n", node.Name)
 				continue
 			}
 
@@ -114,7 +114,7 @@ func (pd *PartitionDetector) DetectPartitions(
 		for _, result := range resultsForThisGroup {
 			if result.Status == "healthy" {
 				healthyCount++
-				fmt.Printf("      ✅ %s: healthy\n", result.NodeName)
+				fmt.Printf("  %s: healthy\n", result.NodeName)
 			} else {
 				unhealthyNodes = append(unhealthyNodes, result.NodeName)
 				fmt.Printf("      ❌ %s: unhealthy\n", result.NodeName)
@@ -122,14 +122,14 @@ func (pd *PartitionDetector) DetectPartitions(
 		}
 
 		totalNodes := len(resultsForThisGroup)
-		fmt.Printf("   📊 Summary: %d healthy, %d unhealthy, %d total\n\n",
+		fmt.Printf("    Summary: %d healthy, %d unhealthy, %d total\n\n",
 			healthyCount, len(unhealthyNodes), totalNodes)
 
 		// Mini-Step E: Calculate quorum
 		quorumRequired := (totalNodes*group.Quorum + 99) / 100
 		isPartitioned := healthyCount < quorumRequired
 
-		fmt.Printf("   📐 Quorum calculation:\n")
+		fmt.Printf("    Quorum calculation:\n")
 		fmt.Printf("      Total nodes: %d\n", totalNodes)
 		fmt.Printf("      Quorum percentage: %d%%\n", group.Quorum)
 		fmt.Printf("      Required healthy: %d\n", quorumRequired)
@@ -146,7 +146,6 @@ func (pd *PartitionDetector) DetectPartitions(
 				healthyCount, totalNodes, quorumRequired)
 		}
 
-		// Mini-Step G: Create GroupStatus
 		status := GroupStatus{
 			GroupName:      group.Name,
 			IsPartitioned:  isPartitioned,
@@ -159,12 +158,12 @@ func (pd *PartitionDetector) DetectPartitions(
 		}
 
 		groupStatuses = append(groupStatuses, status)
-		fmt.Println("   ✅ Group status created")
+		fmt.Println("   Group status created")
 		fmt.Println("═══════════════════════════════════\n")
 	}
 
 	// Mini-Step H: Calculate overall status
-	fmt.Println("🔍 Calculating overall cluster status...")
+	fmt.Println(" Calculating overall cluster status...")
 
 	anyPartitioned := false
 	allHealthy := true
@@ -173,9 +172,9 @@ func (pd *PartitionDetector) DetectPartitions(
 		if status.IsPartitioned {
 			anyPartitioned = true
 			allHealthy = false
-			fmt.Printf("   🚨 %s is partitioned\n", status.GroupName)
+			fmt.Printf("    %s is partitioned\n", status.GroupName)
 		} else {
-			fmt.Printf("   ✅ %s is healthy\n", status.GroupName)
+			fmt.Printf(" %s is healthy\n", status.GroupName)
 		}
 	}
 

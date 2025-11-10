@@ -26,9 +26,9 @@ func main() {
 	}
 
 	// Display basic info
-	fmt.Printf("🚀 Starting %s\n", cfg.Monitor.Name)
-	fmt.Printf("📊 Monitoring %d quorum groups\n", len(cfg.QuorumGroups))
-	fmt.Printf("⏱️  Check interval: %v\n\n", cfg.Monitor.CheckInterval)
+	fmt.Printf("Starting %s\n", cfg.Monitor.Name)
+	fmt.Printf("Monitoring %d quorum groups\n", len(cfg.QuorumGroups))
+	fmt.Printf("Check interval: %v\n\n", cfg.Monitor.CheckInterval)
 
 	// Show quorum groups
 	for _, group := range cfg.QuorumGroups {
@@ -53,7 +53,7 @@ func main() {
 		case <-ticker.C:
 			runHealthChecks(cfg)
 		case <-sigChan:
-			fmt.Println("\n🛑 Shutting down gracefully...")
+			fmt.Println("\nShutting down gracefully...")
 			return
 		}
 	}
@@ -80,7 +80,7 @@ func runHealthChecks(cfg *config.Config) {
 		printNodeResult(result, node)
 	}
 
-	fmt.Println("\n🔍 Partition Detection:")
+	fmt.Println("\nPartition Detection:")
 	detectorInstance := detector.NewPartitionDetector(cfg.QuorumGroups)
 	currentStatus := detectorInstance.DetectPartitions(results, cfg.Nodes)
 
@@ -114,9 +114,9 @@ func printNodeResult(result checker.HealthResult, node config.Node) {
 
 func printGroupStatus(group detector.GroupStatus) {
 	if group.IsPartitioned {
-		fmt.Printf(" ⚠️  %s: PARTITIONED\n", group.GroupName)
+		fmt.Printf("   %s: PARTITIONED\n", group.GroupName)
 	} else {
-		fmt.Printf(" ✅ %s: HEALTHY\n", group.GroupName)
+		fmt.Printf("  %s: HEALTHY\n", group.GroupName)
 	}
 	fmt.Printf("   %s\n", group.Message)
 	if len(group.UnhealthyNodes) > 0 {
@@ -138,9 +138,9 @@ func checkStateChanges(current detector.ClusterStatus) {
 }
 
 func sendAlert(group detector.GroupStatus) {
-	fmt.Printf("🚨 ALERT: %s became PARTITIONED!\n", group.GroupName)
+	fmt.Printf(" ALERT: %s became PARTITIONED!\n", group.GroupName)
 }
 
 func sendRecoveryAlert(group detector.GroupStatus) {
-	fmt.Printf("✅ RECOVERY: %s is now HEALTHY again!\n", group.GroupName)
+	fmt.Printf(" RECOVERY: %s is now HEALTHY again!\n", group.GroupName)
 }
